@@ -1,4 +1,5 @@
 #include "mpi_supg_solver.h"
+#include "mpi_turbulence_model.h"
 
 namespace Fluid
 {
@@ -214,7 +215,8 @@ namespace Fluid
       sparsity_pattern.copy_from(dsp);
       SparsityTools::distribute_sparsity_pattern(
         dsp,
-        dof_handler.locally_owned_dofs_per_processor(),
+        Utilities::MPI::all_gather(mpi_communicator,
+                                   dof_handler.locally_owned_dofs()),
         mpi_communicator,
         locally_relevant_dofs);
 
@@ -279,6 +281,10 @@ namespace Fluid
       if (initial_condition_field)
         {
           apply_initial_condition();
+        }
+      if (turbulence_model)
+        {
+          turbulence_model->initialize_system();
         }
     }
 
@@ -443,9 +449,19 @@ namespace Fluid
       // in the first time step only, and never be used again.
       // This corresponds to time-independent Dirichlet BCs.
       if (!success_load)
-        run_one_step(true);
+        {
+          if (turbulence_model)
+            {
+              turbulence_model->run_one_step(true);
+            }
+          run_one_step(true);
+        }
       while (time.end() - time.current() > 1e-12)
         {
+          if (turbulence_model)
+            {
+              turbulence_model->run_one_step(false);
+            }
           if (!hard_coded_boundary_values.empty())
             {
               // Only for time dependent BCs!
@@ -458,7 +474,9 @@ namespace Fluid
               run_one_step(true);
             }
           else
-            run_one_step(false);
+            {
+              run_one_step(false);
+            }
         }
     }
     template class SUPGFluidSolver<2>;
