@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
           // vmax should equal 1.5 times the average velocity.
           auto v = solution.block(0);
           double vmax = Utils::PETScVectorMax(v);
-          double verror = std::abs(vmax - 0.15) / 0.15;
+          double verror = std::abs(vmax - 1.43e-3) / 1.43e-3;
           AssertThrow(verror < 1e-3,
                       ExcMessage("Maximum velocity is incorrect!"));
         }
