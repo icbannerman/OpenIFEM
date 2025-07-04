@@ -83,6 +83,7 @@ endif()
 # Build the library
 add_library(openifem ${TARGET_SRC})
 target_include_directories(openifem PUBLIC "${CMAKE_SOURCE_DIR}/include")
+target_include_directories(openifem PUBLIC /usr/include/hypre)
 if(OPENIFEM_WITH_rkpm-rk4)
   target_include_directories(openifem PUBLIC ${rkpm-rk4_INCLUDE_DIR})
   target_include_directories(openifem PUBLIC ${EIGEN3_INCLUDE_DIR})

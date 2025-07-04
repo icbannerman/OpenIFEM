@@ -26,7 +26,7 @@ typedef struct
 } MY_PC_HYPRE;
 
 static PetscErrorCode
-PCSetFromOptions_HYPRE_Euclid(PetscOptionItems *PetscOptionsObject, PC pc)
+PCSetFromOptions_HYPRE_Euclid(PC pc, PetscOptionItems *PetscOptionsObject)
 {
   MY_PC_HYPRE *jac = (MY_PC_HYPRE *)pc->data;
   PetscErrorCode ierr;
@@ -37,8 +37,12 @@ PCSetFromOptions_HYPRE_Euclid(PetscOptionItems *PetscOptionsObject, PC pc)
   PetscInt fillin_levels = 0;
 
   PetscFunctionBegin;
+#if PETSC_VERSION_GE(3,18,0)
+  PetscOptionsHeadBegin(PetscOptionsObject, "HYPRE Euclid Options");
+#else
   ierr = PetscOptionsHead(PetscOptionsObject, "HYPRE Euclid Options");
   CHKERRQ(ierr);
+#endif
   ierr = PetscOptionsInt("-pc_hypre_euclid_levels",
                          "Number of levels of fill ILU(k)",
                          "None",
@@ -85,10 +89,14 @@ PCSetFromOptions_HYPRE_Euclid(PetscOptionItems *PetscOptionsObject, PC pc)
       args[cnt++] = (char *)"-eu_mem";
       args[cnt++] = (char *)"1";
     }
+#if PETSC_VERSION_GE(3,18,0)
+  PetscOptionsHeadEnd();
+#else
   ierr = PetscOptionsTail();
   CHKERRQ(ierr);
+#endif
   if (cnt)
-    PetscStackCallStandard(HYPRE_EuclidSetParams, (jac->hsolver, cnt, args));
+    PetscCallExternal(HYPRE_EuclidSetParams, jac->hsolver, cnt, args);
   PetscFunctionReturn(0);
 }
 
@@ -158,7 +166,7 @@ void PreconditionPilut::initialize(const PETScWrappers::MatrixBase &matrix_,
 {
   clear();
 
-  matrix = static_cast<Mat>(matrix_);
+  Mat local_matrix = static_cast<Mat>(matrix_);
   additional_data = additional_data_;
 
   MPI_Comm comm = matrix_.get_mpi_communicator();
@@ -166,7 +174,7 @@ void PreconditionPilut::initialize(const PETScWrappers::MatrixBase &matrix_,
   PetscErrorCode ierr = PCCreate(comm, &pc);
   AssertThrow(ierr == 0, ExcPETScError(ierr));
 
-  ierr = PCSetOperators(pc, matrix, matrix);
+  ierr = PCSetOperators(pc, local_matrix, local_matrix);
   AssertThrow(ierr == 0, ExcPETScError(ierr));
 
   ierr = PCSetType(pc, const_cast<char *>(PCHYPRE));
@@ -204,15 +212,14 @@ PreconditionEuclid::PreconditionEuclid(const PETScWrappers::MatrixBase &matrix)
 void PreconditionEuclid::initialize(const PETScWrappers::MatrixBase &matrix_)
 {
   clear();
-
-  matrix = static_cast<Mat>(matrix_);
+  Mat local_matrix = static_cast<Mat>(matrix_);
 
   MPI_Comm comm = matrix_.get_mpi_communicator();
 
   PetscErrorCode ierr = PCCreate(comm, &pc);
   AssertThrow(ierr == 0, ExcPETScError(ierr));
 
-  ierr = PCSetOperators(pc, matrix, matrix);
+  ierr = PCSetOperators(pc, local_matrix, local_matrix);
   AssertThrow(ierr == 0, ExcPETScError(ierr));
 
   ierr = PCSetType(pc, const_cast<char *>(PCHYPRE));
